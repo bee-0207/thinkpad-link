@@ -1,0 +1,194 @@
+THINKPAD LINK: HOW TO RUN IT (LINUX)
+Two ThinkPads talking to each other with Python (messages + files, both ways at once)
+Last updated: 2026-10-15
+
+======================================================================
+WHAT THIS IS
+======================================================================
+peer.py is one Python script that runs on BOTH laptops.
+
+  - Laptop A runs it in "listen" mode and waits.
+  - Laptop B runs it in "connect" mode and dials laptop A's IP address.
+  - Once connected, either side can type messages or send files at any
+    time, even at the same moment. It doesn't matter which one listened.
+
+Every file is checked with a SHA-256 "fingerprint" on arrival. If even one
+byte got damaged, the file is thrown away and you're told to resend it.
+Received files go into a folder called "received" next to where you ran
+the script.
+
+REQUIREMENTS
+  - Python 3.8 or newer on both laptops (check: python3 --version).
+    Ubuntu, Fedora, Mint, etc. already have it.
+  - Nothing to pip install. It only uses Python's built-in libraries.
+  - Copy peer.py onto both laptops (USB stick, scp, GitHub, anything).
+
+The commands below assume a NetworkManager-based distro (Ubuntu, Fedora,
+Mint, Pop!_OS and most others). Each step also gives the GUI route.
+
+======================================================================
+STEP 1: PUT BOTH LAPTOPS ON THE SAME NETWORK
+======================================================================
+Do NOT use campus Wi-Fi (eduroam, BU Guest). It blocks laptops from
+talking to each other. That's why our first try failed. Pick ONE option:
+
+OPTION A: Phone hotspot (easiest)
+  Turn on a phone's hotspot and connect both ThinkPads to it.
+
+OPTION B: Ethernet cable (most reliable, fastest)
+  1. Plug a normal Ethernet cable between the two laptops. No special
+     "crossover" cable is needed. If a ThinkPad has no Ethernet port, use a
+     USB-C to Ethernet adapter (Linux supports almost all of them).
+
+  2. Find the name of the Ethernet port on each laptop:
+         nmcli device
+     Look for the row with TYPE "ethernet". The name looks like
+     enp0s31f6, eth0, or enx001122334455 (for USB adapters).
+
+  3. Give each laptop a fixed address, because there's no router to hand
+     them out. Replace enp0s31f6 with YOUR device name:
+
+       Laptop A:
+         sudo nmcli con add type ethernet ifname enp0s31f6 con-name tplink \
+              ipv4.method manual ipv4.addresses 192.168.50.1/24
+         sudo nmcli con up tplink
+
+       Laptop B:
+         sudo nmcli con add type ethernet ifname enp0s31f6 con-name tplink \
+              ipv4.method manual ipv4.addresses 192.168.50.2/24
+         sudo nmcli con up tplink
+
+     GUI instead: Settings > Network > Wired > gear icon > IPv4 > Manual.
+     Address 192.168.50.1 (or .2 on laptop B), Netmask 255.255.255.0,
+     leave Gateway and DNS blank. Apply, then toggle Wired off and on.
+
+  4. Check it worked, on laptop B:
+         ping -c 3 192.168.50.1
+     Replies mean the cable link is good. (Linux answers pings by default,
+     so here ping IS a useful test.)
+
+  To undo later:  sudo nmcli con delete tplink
+
+OPTION C: One laptop makes its own Wi-Fi hotspot
+  On laptop A:
+      nmcli device wifi hotspot ssid tplink password linkpass123
+  On laptop B: join the "tplink" Wi-Fi network with that password.
+  Laptop A gets the address 10.42.0.1. Notes: laptop A drops off its normal
+  Wi-Fi while hosting, and a few Wi-Fi cards don't support hotspot mode. If
+  this fails, use option A or B.
+
+======================================================================
+STEP 2: FIREWALL (usually nothing to do)
+======================================================================
+Linux usually doesn't block this out of the box, but check laptop A:
+
+  Ubuntu / Mint / Pop!_OS (ufw):
+      sudo ufw status
+    "inactive" -> nothing to do.
+    "active"   -> sudo ufw allow 5000/tcp
+
+  Fedora (firewalld, which IS on by default):
+      sudo firewall-cmd --add-port=5000/tcp
+    This lasts until reboot. To keep it, run it again with --permanent.
+
+======================================================================
+STEP 3: RUN IT
+======================================================================
+Open a terminal in the folder with peer.py.
+
+On LAPTOP A:
+    python3 peer.py listen
+
+  It prints this laptop's IP address(es) and waits. If none is shown, or
+  you see several, run "ip a" and use the "inet" address on the interface
+  you're actually using (the Ethernet port, or wlp... for Wi-Fi).
+  With the cable setup from Step 1 it's 192.168.50.1.
+
+On LAPTOP B (use laptop A's IP):
+    python3 peer.py connect 192.168.50.1
+
+  It keeps retrying for 30 seconds, so it's fine to start B a little
+  before A.
+
+Both sides then show "Connected." Now you can:
+
+    hello there          sends a chat message
+    /send notes.txt      sends a file (from the current folder)
+    /send "/home/me/Desktop/my file.zip"
+                         sends a file by full path (quotes allowed)
+    /quit                disconnects
+
+Use a different port if 5000 is taken, the same number on both sides:
+    python3 peer.py listen --port 6000
+    python3 peer.py connect 192.168.50.1 --port 6000
+
+======================================================================
+STEP 4 (OPTIONAL): TEST THE SPEED
+======================================================================
+Make a 1 GB test file on the sending laptop:
+    head -c 1G /dev/urandom > test.bin
+Then:  /send test.bin
+
+When it finishes, both sides print the speed. Rough expectations:
+  - Ethernet cable (gigabit):  ~100-115 MB/s
+  - Phone hotspot / Wi-Fi:     ~5-40 MB/s, varies a lot
+  - Old WD 320 GB hard drives: ~55-110 MB/s, so on a cable the
+    drive can be the slowest part, not the network.
+
+Check an old drive's health before trusting it with data:
+    sudo apt install smartmontools      (Fedora: sudo dnf install smartmontools)
+    sudo smartctl -H /dev/sdX           (find sdX with: lsblk)
+
+======================================================================
+TROUBLESHOOTING
+======================================================================
+"Could not reach ... timed out" (connect side keeps retrying)
+  -> Wrong IP (run "ip a" on laptop A again), OR
+  -> you're on campus Wi-Fi (switch to Step 1 option A, B or C), OR
+  -> firewall on laptop A (redo Step 2).
+
+"Connection refused"
+  -> The network works, but laptop A isn't running "peer.py listen" yet,
+     or you used a different port on each side.
+
+"No route to host"
+  -> Usually a firewall (Fedora's firewalld rejects instead of ignoring).
+     Redo Step 2.
+
+Test the network without the script, from laptop B
+(start "peer.py listen" on laptop A first):
+    nc -zv 192.168.50.1 5000
+  "succeeded" / "open" -> network fine, look at the commands you typed
+  "timed out" / "refused" -> network/firewall problem, see above
+
+Cable plugged in but no link at all
+  -> nmcli device   should show the ethernet port as "connected".
+     If it says "unavailable", reseat the cable/adapter or try another one.
+
+"checksum FAILED"
+  -> The file got damaged in transit. Just /send it again. If it keeps
+     failing, try a different cable or USB adapter.
+
+The program says "connection closed"
+  -> The other side quit, or the cable/Wi-Fi dropped. Press Enter, then
+     start listen/connect again. Any half-received file is deleted
+     automatically, so just resend it.
+
+======================================================================
+HOW IT WORKS (FOR THE CURIOUS)
+======================================================================
+- It uses one TCP connection. TCP is "full duplex": data can flow in both
+  directions at the same time, like a phone call, not a walkie-talkie.
+- Each laptop runs two threads: one that only reads incoming data and one
+  that only sends. That's why you can receive a file while sending one.
+- Everything sent is wrapped in a small labeled envelope (a "frame"):
+  a length, then a JSON label saying what it is (message, file, file
+  end, receipt), then for files the raw bytes. That's how the other side
+  knows where one thing ends and the next begins.
+- Files are written to "name.part" first and only renamed to the real
+  name once the checksum matches, so you never end up with a broken file
+  that looks complete.
+- Files go in the "received" folder only. The script strips folder names
+  from incoming files so nobody can write files elsewhere on your laptop.
+- Nothing is encrypted and there's no password. Fine on a cable or your
+  own hotspot, but don't run it on a public network.

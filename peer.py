@@ -27,7 +27,7 @@ import threading
 import time
 from pathlib import Path
 
-PORT = 5000
+PORT = 5050
 CHUNK = 1 << 20  # 1 MB
 RECV_DIR = Path("received")
 

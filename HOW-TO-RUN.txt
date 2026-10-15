@@ -85,10 +85,10 @@ Linux usually doesn't block this out of the box, but check laptop A:
   Ubuntu / Mint / Pop!_OS (ufw):
       sudo ufw status
     "inactive" -> nothing to do.
-    "active"   -> sudo ufw allow 5000/tcp
+    "active"   -> sudo ufw allow 5050/tcp
 
   Fedora (firewalld, which IS on by default):
-      sudo firewall-cmd --add-port=5000/tcp
+      sudo firewall-cmd --add-port=5050/tcp
     This lasts until reboot. To keep it, run it again with --permanent.
 
 ======================================================================
@@ -118,7 +118,7 @@ Both sides then show "Connected." Now you can:
                          sends a file by full path (quotes allowed)
     /quit                disconnects
 
-Use a different port if 5000 is taken, the same number on both sides:
+Use a different port if 5050 is taken, the same number on both sides:
     python3 peer.py listen --port 6000
     python3 peer.py connect 192.168.50.1 --port 6000
 
@@ -157,7 +157,7 @@ TROUBLESHOOTING
 
 Test the network without the script, from laptop B
 (start "peer.py listen" on laptop A first):
-    nc -zv 192.168.50.1 5000
+    nc -zv 192.168.50.1 5050
   "succeeded" / "open" -> network fine, look at the commands you typed
   "timed out" / "refused" -> network/firewall problem, see above
 

@@ -214,7 +214,8 @@ def listen(port):
     srv.bind(("0.0.0.0", port))
     srv.listen(1)
     ips = local_ips()
-    say(f"This laptop's IP address(es): {', '.join(ips) or "unknown, run 'ip a'"}")
+    shown = ", ".join(ips) or "unknown, run 'ip a'"
+    say(f"This laptop's IP address(es): {shown}")
     say(f"Waiting on port {port}. On the other laptop run:  python3 peer.py connect <IP above>")
     conn, addr = srv.accept()
     srv.close()

@@ -153,56 +153,7 @@ commit de8c629 ("Fix f-string that only parses on Python 3.12+"):
     shown = ", ".join(ips) or "unknown, run 'ip a'"
     say(f"This laptop's IP address(es): {shown}")
 
-4.2 "cd: too many arguments"
-
-Problem: Typed cd ~/ main-A with a space after the slash. Bash read it
-as two separate arguments.
-
-Fix: The path must be one piece with no spaces, and there must be a
-space between cd and the path:
-
-    cd ~/main-A
-
-4.3 "cd~/main-A: No such file or directory" and "Command 'cd~' not found"
-
-Problem: No space between cd and the path, so bash looked for a command
-literally called "cd~".
-
-Fix: Always type cd, then a space, then the path.
-
-4.4 Wrong home folder name
-
-Problem: Typed /home/telemetry-hub1-ThinkPad/Desktop/main-A. The home
-folder is named after the user (telemetry-hub-1), not the computer
-(telemetry-hub-1-ThinkPad-T15-Gen-1).
-
-Fix: Use ~, which always means "my home folder":
-
-    cd ~/Desktop/main-A
-
-Tip: Type part of a name, like cd ~/Desktop/ma, and press Tab. The
-terminal finishes it for you, so typos can't creep in.
-
-4.5 find printed nothing
-
-Problem: The command was typed as -type d name "main-A". The "find ~"
-at the start and the dash before "name" were missing.
-
-Fix:
-
-    find ~ -type d -name "main-A" 2>/dev/null
-
-4.6 "syntax error near unexpected token `newline'"
-
-Problem: Typed python3 peer.py connect <172.16.2.39>. The angle brackets
-in the instructions were placeholders. Bash treats < and > as
-redirection symbols.
-
-Fix: Type the IP address on its own:
-
-    python3 peer.py connect 172.16.2.39
-
-4.7 Why Claude can't run peer.py for you
+4.2 Why Claude can't run peer.py for you
 
 peer.py is interactive. It waits for you to type messages. Commands that
 Claude runs are not attached to your keyboard, and they have a time
